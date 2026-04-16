@@ -46,6 +46,7 @@ Requires=docker.service
 WorkingDirectory=$APP_DIR
 Environment="DATABASE_URL=$DB_URL"
 Environment="PATH=$VENV/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+EnvironmentFile=-$APP_DIR/.env
 ExecStartPre=/usr/bin/docker compose -f $APP_DIR/docker-compose.yml up -d
 ExecStart=$VENV/bin/python -m celery -A cgd.workers.celery_app worker -l INFO -Q ingest_rest,ingest_ccxt,ingest_rpc,evaluate,alerts,default
 Restart=always
@@ -66,6 +67,7 @@ Requires=celery-worker.service
 WorkingDirectory=$APP_DIR
 Environment="DATABASE_URL=$DB_URL"
 Environment="PATH=$VENV/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+EnvironmentFile=-$APP_DIR/.env
 ExecStart=$VENV/bin/python -m celery -A cgd.workers.celery_app beat -l INFO
 Restart=always
 RestartSec=10
