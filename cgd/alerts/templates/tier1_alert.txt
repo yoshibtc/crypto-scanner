@@ -1,0 +1,8 @@
+[CGD] {{ pattern_id }} — {{ entity_name }} ({{ entity_slug }})
+status={{ status }}
+
+payload:
+{{ payload | tojson }}
+
+refs:
+{{ refs | tojson }}

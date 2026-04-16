@@ -1,0 +1,14 @@
+# Versioned CCXT capability matrix. verify_ccxt_matrix task checks fields at runtime.
+matrix_version: 1
+venues:
+  binance:
+    enabled: true
+    ccxt_id: binance
+    spot: true
+    perp: true
+    notes: "Default reference; adjust per ToS"
+  coinbase:
+    enabled: false
+    ccxt_id: coinbase
+    spot: true
+    perp: false

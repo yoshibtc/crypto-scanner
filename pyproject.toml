@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crypto-gap-detector"
+version = "0.1.0"
+description = "Deterministic crypto research gap detector (Tier 1 baseline)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "celery[redis]>=5.4.0",
+    "redis>=5.0.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "psycopg2-binary>=2.9.10",
+    "alembic>=1.14.0",
+    "httpx>=0.28.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "ccxt>=4.4.0",
+    "jinja2>=3.1.4",
+    "pyyaml>=6.0.2",
+    "python-dotenv>=1.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[project.scripts]
+cgd-evaluate = "cgd.workers.one_shot:run_evaluate"
+cgd-ingest-llama = "cgd.workers.one_shot:run_ingest_defillama"
+cgd-ingest-ccxt = "cgd.workers.one_shot:run_ingest_ccxt"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cgd*"]
+
+[tool.setuptools.package-data]
+cgd = ["alerts/templates/*.txt"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -1,0 +1,2 @@
+-- Optional retention (adjust interval). Requires TimescaleDB.
+-- SELECT add_retention_policy('market_facts', INTERVAL '90 days');
