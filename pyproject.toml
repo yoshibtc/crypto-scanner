@@ -33,6 +33,7 @@ dev = [
 cgd-evaluate = "cgd.workers.one_shot:run_evaluate"
 cgd-ingest-llama = "cgd.workers.one_shot:run_ingest_defillama"
 cgd-ingest-ccxt = "cgd.workers.one_shot:run_ingest_ccxt"
+cgd-bot = "cgd.bot.poller:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
