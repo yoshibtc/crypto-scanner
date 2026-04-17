@@ -17,4 +17,7 @@ jobs:
           key: ${{ secrets.DROPLET_SSH_KEY }}
           port: 22
           script: |
-            bash /root/crypto-scanner/scripts/deploy.sh
+            cd /root/crypto-scanner
+            git pull --ff-only
+            chmod +x scripts/deploy.sh scripts/install_bot_service.sh
+            bash scripts/deploy.sh
