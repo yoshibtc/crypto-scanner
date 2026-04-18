@@ -1,0 +1,30 @@
+# Tier-1 pattern thresholds (deterministic CGD).
+# percentile_window_days: rolling history for percentile gates (from stored facts).
+
+pattern_version: 1
+percentile_window_days: 30
+liquidity_quote_volume_floor_usd: 500000
+
+# Percentile gates: firing metric must fall in [min_percentile, max_percentile] of its historical distribution (0–1).
+gates:
+  P6:
+    metric: fdv_wow_pct
+    min_percentile: 0.85
+    max_percentile: 1.0
+  P7:
+    metric: oi_change_pct
+    min_percentile: 0.85
+    max_percentile: 1.0
+
+# Per-pattern regime allowlists (omit pattern or empty = allow all regimes).
+# trends: up | down | sideways (optional expansion)
+regime_allowlist:
+  P7:
+    trends: ["up", "down"]
+    vol_buckets: ["low", "mid", "high"]
+  P6:
+    trends: ["up", "down"]
+    vol_buckets: ["low", "mid", "high"]
+  P10:
+    trends: ["up", "down"]
+    vol_buckets: ["low", "mid", "high"]

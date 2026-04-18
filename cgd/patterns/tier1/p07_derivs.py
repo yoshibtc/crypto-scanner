@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import timedelta
 from typing import Any
 
+from cgd.engine.facts_loader import historical_venue_oi_change_pcts
 from cgd.patterns.types import EvaluationContext, GapCandidate
 
 PATTERN_ID = "P7"
@@ -32,20 +34,19 @@ def _extract_oi(payload: dict[str, Any]) -> float | None:
         return None
 
 
-def detect(ctx: EvaluationContext) -> list[GapCandidate]:
-    rows = [
-        r
-        for r in ctx.market_rows
-        if r.get("fact_type") == "ccxt_ticker" and r.get("venue_id")
-    ]
+def _detect_one_venue(
+    ctx: EvaluationContext,
+    vid: str,
+    rows: list[dict[str, Any]],
+) -> GapCandidate | None:
     rows.sort(key=lambda r: r["source_ts"])
     if len(rows) < 2:
-        return []
+        return None
 
     old = rows[0]
     new = rows[-1]
     if new["source_ts"] - old["source_ts"] < timedelta(hours=20):
-        return []
+        return None
 
     p_old = old.get("payload") or {}
     p_new = new.get("payload") or {}
@@ -54,17 +55,17 @@ def detect(ctx: EvaluationContext) -> list[GapCandidate]:
     except (TypeError, ValueError):
         chg = None
     if chg is None:
-        return []
+        return None
     if chg > FLAT_OR_DOWN_PCT:
-        return []
+        return None
 
     oi_o = _extract_oi(p_old)
     oi_n = _extract_oi(p_new)
     if not oi_o or oi_o <= 0 or oi_n is None:
-        return []
+        return None
     oi_up = (oi_n - oi_o) / oi_o
     if oi_up <= OI_UP:
-        return []
+        return None
 
     fr = p_new.get("funding_rate")
     try:
@@ -72,22 +73,47 @@ def detect(ctx: EvaluationContext) -> list[GapCandidate]:
     except (TypeError, ValueError):
         fr_f = None
     if fr_f is None or fr_f >= FUNDING_MAX:
-        return []
+        return None
 
-    dedupe = f"{ctx.entity.id}:{new['venue_id']}:{PATTERN_ID}"
-    return [
-        GapCandidate(
-            pattern_id=PATTERN_ID,
-            entity_id=ctx.entity.id,
-            dedupe_key=dedupe,
-            payload={
-                "oi_change_pct": round(oi_up * 100, 4),
-                "funding_rate": fr_f,
-                "price_change_pct_24h": chg,
-                "venue": new["venue_id"],
-                "framing": "positioning_leverage_stress",
-            },
-            refs={"old_fact_ts": old["source_ts"].isoformat(), "new_fact_ts": new["source_ts"].isoformat()},
-            reason_codes=["P7_FIRED"],
-        )
-    ]
+    oi_change_pct = round(oi_up * 100, 4)
+    hist_pct: list[float] = []
+    if ctx.session is not None:
+        hist = historical_venue_oi_change_pcts(ctx.session, ctx.entity.id, vid)
+        hist_pct = [h * 100.0 for h in hist]
+
+    dedupe = f"{ctx.entity.id}:{vid}:{PATTERN_ID}"
+    payload: dict[str, Any] = {
+        "oi_change_pct": oi_change_pct,
+        "funding_rate": fr_f,
+        "price_change_pct_24h": chg,
+        "venue": vid,
+        "framing": "positioning_leverage_stress",
+        "_gate_metric": float(oi_change_pct),
+        "_gate_history": hist_pct,
+    }
+    return GapCandidate(
+        pattern_id=PATTERN_ID,
+        entity_id=ctx.entity.id,
+        dedupe_key=dedupe,
+        payload=payload,
+        refs={"old_fact_ts": old["source_ts"].isoformat(), "new_fact_ts": new["source_ts"].isoformat()},
+        reason_codes=["P7_FIRED"],
+        side="watch",
+        invalidation={"type": "funding_above", "level": FUNDING_MAX},
+        half_life_minutes=240,
+        tradable=True,
+    )
+
+
+def detect(ctx: EvaluationContext) -> list[GapCandidate]:
+    venue_rows: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for r in ctx.market_rows:
+        if r.get("fact_type") == "ccxt_ticker" and r.get("venue_id"):
+            venue_rows[str(r["venue_id"])].append(r)
+
+    out: list[GapCandidate] = []
+    for vid, rows in venue_rows.items():
+        cand = _detect_one_venue(ctx, vid, rows)
+        if cand is not None:
+            out.append(cand)
+    return out

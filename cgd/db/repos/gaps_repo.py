@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from cgd.db.engine import session_scope
-from cgd.db.models import Gap, GapEvent, GapStatus
+from cgd.db.models import Gap, GapEvent, GapOutcome, GapStatus
 
 
 def upsert_gap_candidate_session(
@@ -37,6 +37,7 @@ def upsert_gap_candidate_session(
             resolved_at=None,
             payload_json=payload,
             supporting_observation_refs=refs,
+            resolve_miss_streak=0,
         )
         session.add(g)
         session.flush()
@@ -53,6 +54,7 @@ def upsert_gap_candidate_session(
 
     existing.payload_json = payload
     existing.supporting_observation_refs = refs
+    existing.resolve_miss_streak = 0
     session.add(
         GapEvent(
             gap_id=existing.id,
@@ -107,6 +109,89 @@ def list_escalated_undispatched(session: Session) -> list[Gap]:
         Gap.alert_dispatched_at.is_(None),
     )
     return list(session.execute(stmt).scalars().all())
+
+
+def resolve_gap_session(session: Session, gap_id: int, *, reason: str = "MANUAL") -> bool:
+    now = datetime.now(timezone.utc)
+    g = session.get(Gap, gap_id)
+    if g is None or g.status not in (
+        GapStatus.DETECTED.value,
+        GapStatus.ESCALATED.value,
+    ):
+        return False
+    g.status = GapStatus.RESOLVED.value
+    g.resolved_at = now
+    session.add(
+        GapEvent(
+            gap_id=g.id,
+            event_type="RESOLVED",
+            reason_codes=[],
+            meta={"reason": reason},
+            created_at=now,
+        )
+    )
+    return True
+
+
+def invalidate_gap_session(session: Session, gap_id: int, *, reason: str = "MANUAL") -> bool:
+    now = datetime.now(timezone.utc)
+    g = session.get(Gap, gap_id)
+    if g is None or g.status not in (
+        GapStatus.DETECTED.value,
+        GapStatus.ESCALATED.value,
+    ):
+        return False
+    g.status = GapStatus.INVALIDATED.value
+    g.resolved_at = now
+    session.add(
+        GapEvent(
+            gap_id=g.id,
+            event_type="INVALIDATED",
+            reason_codes=[],
+            meta={"reason": reason},
+            created_at=now,
+        )
+    )
+    return True
+
+
+def upsert_gap_outcome_returns(
+    session: Session,
+    *,
+    gap_id: int,
+    ret_1h_pct: float | None,
+    ret_4h_pct: float | None,
+    ret_24h_pct: float | None,
+    ret_7d_pct: float | None,
+    notes: str | None = None,
+) -> None:
+    """Insert or update forward-return snapshot for labeling."""
+    now = datetime.now(timezone.utc)
+    stmt = select(GapOutcome).where(GapOutcome.gap_id == gap_id)
+    row = session.execute(stmt).scalar_one_or_none()
+    if row is None:
+        session.add(
+            GapOutcome(
+                gap_id=gap_id,
+                actionable=None,
+                still_true_7d=None,
+                notes=notes or "",
+                labeled_at=now,
+                ret_1h_pct=ret_1h_pct,
+                ret_4h_pct=ret_4h_pct,
+                ret_24h_pct=ret_24h_pct,
+                ret_7d_pct=ret_7d_pct,
+                computed_at=now,
+            )
+        )
+    else:
+        row.ret_1h_pct = ret_1h_pct
+        row.ret_4h_pct = ret_4h_pct
+        row.ret_24h_pct = ret_24h_pct
+        row.ret_7d_pct = ret_7d_pct
+        row.notes = notes if notes is not None else row.notes
+        row.labeled_at = now
+        row.computed_at = now
 
 
 def upsert_gap_candidate(**kwargs) -> tuple[Gap, str]:

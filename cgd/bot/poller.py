@@ -19,8 +19,13 @@ from cgd.bot.commands import (
     cmd_gaps,
     cmd_health,
     cmd_help,
+    cmd_invalidate,
+    cmd_regime,
+    cmd_resolve,
     cmd_status,
     cmd_watchlist,
+    cmd_watchlist_add,
+    cmd_watchlist_remove,
 )
 from cgd.db.engine import session_scope
 from cgd.settings import get_settings
@@ -61,9 +66,10 @@ def _handle(token: str, allowed_chat: str, message: dict) -> None:
     if not text.startswith("/"):
         return
 
-    # Strip bot @mention suffix (e.g. /status@MyBot → /status)
-    command = text.split()[0].split("@")[0].lower()
-    log.info("Command received: %s", command)
+    parts = text.split()
+    command = parts[0].split("@")[0].lower()
+    args = parts[1:]
+    log.info("Command received: %s args=%s", command, args)
 
     try:
         if command == "/help":
@@ -74,9 +80,38 @@ def _handle(token: str, allowed_chat: str, message: dict) -> None:
         elif command == "/watchlist":
             with session_scope() as session:
                 reply = cmd_watchlist(session)
+        elif command == "/watchlist_add":
+            if len(args) < 1:
+                reply = "Usage: /watchlist_add slug [display_name...]"
+            else:
+                slug = args[0]
+                rest = " ".join(args[1:]).strip()
+                with session_scope() as session:
+                    reply = cmd_watchlist_add(session, slug, rest or None)
+        elif command == "/watchlist_remove":
+            if len(args) < 1:
+                reply = "Usage: /watchlist_remove slug"
+            else:
+                with session_scope() as session:
+                    reply = cmd_watchlist_remove(session, args[0])
         elif command == "/gaps":
             with session_scope() as session:
                 reply = cmd_gaps(session)
+        elif command == "/resolve":
+            if len(args) < 1:
+                reply = "Usage: /resolve <gap_id>"
+            else:
+                with session_scope() as session:
+                    reply = cmd_resolve(session, int(args[0]))
+        elif command == "/invalidate":
+            if len(args) < 1:
+                reply = "Usage: /invalidate <gap_id>"
+            else:
+                with session_scope() as session:
+                    reply = cmd_invalidate(session, int(args[0]))
+        elif command == "/regime":
+            with session_scope() as session:
+                reply = cmd_regime(session)
         elif command == "/alerts":
             with session_scope() as session:
                 reply = cmd_alerts(session)

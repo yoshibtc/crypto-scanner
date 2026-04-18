@@ -7,6 +7,12 @@ venues:
     spot: true
     perp: true
     notes: "Default reference; adjust per ToS"
+  bybit:
+    enabled: true
+    ccxt_id: bybit
+    spot: true
+    perp: true
+    notes: "Second venue for multi-venue P7"
   coinbase:
     enabled: false
     ccxt_id: coinbase

@@ -57,11 +57,13 @@ def ingest_defillama_snapshot() -> int:
     now = datetime.now(timezone.utc)
     count = 0
     source_key = "defillama"
+    any_slug_ok = False
     try:
         with session_scope() as session:
             entities = list(session.execute(select(Entity)).scalars().all())
             for ent in entities:
                 for slug in ent.llama_protocol_slugs or []:
+                    slug_key = f"defillama:{slug}"
                     try:
                         data: dict[str, Any] = fetch_json(_protocol_url(slug))
                         payload = extract_protocol_snapshot(data, slug)
@@ -76,9 +78,15 @@ def ingest_defillama_snapshot() -> int:
                         )
                         session.add(mf)
                         count += 1
-                    except Exception:
+                        touch_success(slug_key, None)
+                        any_slug_ok = True
+                    except Exception as e:
+                        touch_failure(slug_key, None, str(e))
                         continue
-        touch_success(source_key, None)
+        if any_slug_ok:
+            touch_success(source_key, None)
+        else:
+            touch_failure(source_key, None, "no_protocol_fetched")
     except Exception as e:
         touch_failure(source_key, None, str(e))
         raise

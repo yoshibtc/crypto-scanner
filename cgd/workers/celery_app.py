@@ -13,6 +13,9 @@ app = Celery(
         "cgd.workers.tasks.evaluate",
         "cgd.workers.tasks.alerts",
         "cgd.workers.tasks.health",
+        "cgd.workers.tasks.lifecycle",
+        "cgd.workers.tasks.labels",
+        "cgd.workers.tasks.regime",
     ],
 )
 
@@ -42,10 +45,35 @@ app.conf.update(
             "schedule": 300.0,
             "options": {"queue": "ingest_ccxt"},
         },
-        "evaluate-tier1-every-10m": {
-            "task": "cgd.evaluate_tier1",
-            "schedule": 600.0,
+        "ingest-rpc-health-every-5m": {
+            "task": "cgd.ingest_rpc_health",
+            "schedule": 300.0,
+            "options": {"queue": "ingest_rpc"},
+        },
+        "evaluate-tier1-fast-every-2m": {
+            "task": "cgd.evaluate_tier1_fast",
+            "schedule": 120.0,
             "options": {"queue": "evaluate"},
+        },
+        "evaluate-tier1-slow-every-20m": {
+            "task": "cgd.evaluate_tier1_slow",
+            "schedule": 1200.0,
+            "options": {"queue": "evaluate"},
+        },
+        "auto-resolve-gaps-every-20m": {
+            "task": "cgd.auto_resolve_gaps",
+            "schedule": 1200.0,
+            "options": {"queue": "evaluate"},
+        },
+        "compute-gap-outcomes-hourly": {
+            "task": "cgd.compute_gap_outcomes",
+            "schedule": 3600.0,
+            "options": {"queue": "default"},
+        },
+        "record-btc-regime-daily": {
+            "task": "cgd.record_btc_regime",
+            "schedule": 86400.0,
+            "options": {"queue": "default"},
         },
         "dispatch-alerts-every-2m": {
             "task": "cgd.dispatch_alerts",

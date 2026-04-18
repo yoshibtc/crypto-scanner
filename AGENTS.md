@@ -9,7 +9,7 @@ Read this before making changes. Short by design.
 - **Python services (systemd on the Droplet):**
   - `celery-worker.service` — runs ingest, evaluate, alert tasks
   - `celery-beat.service` — schedules those tasks
-  - `cgd-bot.service` — Telegram status bot (`/status`, `/watchlist`, `/gaps`, `/alerts`, `/health`)
+  - `cgd-bot.service` — Telegram bot (`/status`, `/watchlist`, `/watchlist_add`, `/watchlist_remove`, `/gaps`, `/resolve`, `/invalidate`, `/regime`, `/alerts`, `/health`)
 - **Python venv:** `/root/crypto-scanner/.venv`
 - **Secrets:** `/root/crypto-scanner/.env` (never in git; `.env.example` must stay empty for secret-like keys)
 

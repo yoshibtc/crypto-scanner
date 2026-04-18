@@ -53,6 +53,10 @@ def _cex_leg(ctx: EvaluationContext) -> list[GapCandidate]:
             payload={"leg": "CEX", "hours": CONSEC_HOURS, "peg_drift": PEG_DRIFT},
             refs={"last_ts": last_n[-1]["source_ts"].isoformat()},
             reason_codes=["P10_CEX_FIRED"],
+            side="fade",
+            invalidation={"type": "peg_within_band", "level": 1.0 + PEG_DRIFT},
+            half_life_minutes=360,
+            tradable=True,
         )
     ]
 
@@ -79,6 +83,10 @@ def _dex_leg(ctx: EvaluationContext) -> list[GapCandidate]:
             payload={"leg": "DEX", "major_share": mj},
             refs={"source_ts": row["source_ts"].isoformat()},
             reason_codes=["P10_DEX_FIRED"],
+            side="watch",
+            invalidation={"type": "major_share_below", "level": POOL_SKEW},
+            half_life_minutes=720,
+            tradable=True,
         )
     ]
 
@@ -87,6 +95,8 @@ def detect(ctx: EvaluationContext) -> list[GapCandidate]:
     if not _is_stable_entity(ctx):
         return []
     out: list[GapCandidate] = []
-    out.extend(_cex_leg(ctx))
-    out.extend(_dex_leg(ctx))
+    if ctx.p10_mode in ("full", "cex_only"):
+        out.extend(_cex_leg(ctx))
+    if ctx.p10_mode in ("full", "dex_only"):
+        out.extend(_dex_leg(ctx))
     return out

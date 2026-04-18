@@ -29,7 +29,7 @@ def main() -> None:
             rpc_chain="ethereum",
             supply_source="stub",
             mapping_confidence=0.85,
-            enabled_patterns=["P6", "P2"],
+            enabled_patterns=["P6"],
             tvl_contract_allowlist=[],
             created_at=now,
             updated_at=now,

@@ -11,15 +11,18 @@ from datetime import datetime, timezone
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
-from cgd.db.models import Entity, EvaluationRun, Gap, GapStatus, SourceHealth
+from cgd.db.models import Entity, EvaluationRun, Gap, GapStatus, MarketFact, SourceHealth
+from cgd.db.repos.entities_repo import disable_entity, upsert_entity
+from cgd.db.repos.gaps_repo import invalidate_gap_session, resolve_gap_session
+from cgd.engine.pattern_registry import ALL_TIER1
 from cgd.settings import get_settings
 
 _PATTERN_LABELS = {
-    "p01_unlocks": "P01 Unlocks",
-    "p02_tvl": "P02 TVL",
-    "p06_revenue_fdv": "P06 Rev/FDV",
-    "p07_derivs": "P07 Derivs",
-    "p10_stable": "P10 Stable",
+    "P1": "P01 Unlocks",
+    "P2": "P02 TVL",
+    "P6": "P06 Rev/FDV",
+    "P7": "P07 Derivs",
+    "P10": "P10 Stable",
 }
 
 
@@ -40,12 +43,17 @@ def _ago(dt: datetime | None) -> str:
 def cmd_help() -> str:
     return (
         "CGD Bot — available commands:\n\n"
-        "/status    — system overview & last scan\n"
-        "/watchlist — entities being tracked\n"
-        "/gaps      — open / escalated gaps\n"
-        "/alerts    — recently dispatched alerts\n"
-        "/health    — data-source health\n"
-        "/help      — this message"
+        "/status            — system overview & last scan\n"
+        "/watchlist         — entities being tracked\n"
+        "/watchlist_add     — args: slug display_name — register/update entity\n"
+        "/watchlist_remove  — args: slug — disable entity\n"
+        "/gaps              — open / escalated gaps (shows gap id)\n"
+        "/resolve           — args: gap_id — mark resolved\n"
+        "/invalidate        — args: gap_id — mark invalidated\n"
+        "/regime            — latest BTC regime snapshot\n"
+        "/alerts            — recently dispatched alerts\n"
+        "/health            — data-source health\n"
+        "/help              — this message"
     )
 
 
@@ -136,7 +144,7 @@ def cmd_gaps(session: Session) -> str:
         pat = _PATTERN_LABELS.get(g.pattern_id, g.pattern_id)
         dispatched = "✅ alerted" if g.alert_dispatched_at else "⏳ pending"
         lines.append(
-            f"[{g.status}] {name} — {pat}\n"
+            f"id={g.id} [{g.status}] {name} — {pat}\n"
             f"  Opened {_ago(g.opened_at)} | {dispatched}"
         )
     return "\n".join(lines)
@@ -190,3 +198,50 @@ def cmd_health(session: Session) -> str:
             short_err = sh.last_error[:80] + ("…" if len(sh.last_error) > 80 else "")
             lines.append(f"  ↳ {short_err}")
     return "\n".join(lines)
+
+
+def cmd_resolve(session: Session, gap_id: int) -> str:
+    ok = resolve_gap_session(session, gap_id, reason="telegram")
+    return f"Gap {gap_id} resolved." if ok else f"Could not resolve gap {gap_id} (missing or closed)."
+
+
+def cmd_invalidate(session: Session, gap_id: int) -> str:
+    ok = invalidate_gap_session(session, gap_id, reason="telegram")
+    return f"Gap {gap_id} invalidated." if ok else f"Could not invalidate gap {gap_id} (missing or closed)."
+
+
+def cmd_regime(session: Session) -> str:
+    row = session.execute(
+        select(MarketFact)
+        .where(MarketFact.fact_type == "btc_regime")
+        .order_by(desc(MarketFact.source_ts))
+        .limit(1)
+    ).scalar_one_or_none()
+    if row is None:
+        return "No btc_regime snapshot yet (wait for daily record_btc_regime task)."
+    p = row.payload or {}
+    return (
+        "BTC regime (latest)\n"
+        f"  as_of: {_ago(row.source_ts)}\n"
+        f"  trend: {p.get('trend')}\n"
+        f"  vol_bucket: {p.get('realized_vol_bucket')}\n"
+        f"  ann_vol_pct: {p.get('realized_vol_ann_pct')}\n"
+        f"  patterns allowed: {', '.join(ALL_TIER1)} (see config/patterns.yaml)"
+    )
+
+
+def cmd_watchlist_add(session: Session, slug: str, display_name: str | None) -> str:
+    name = (display_name or slug).strip()
+    upsert_entity(
+        session,
+        slug=slug.strip(),
+        display_name=name,
+        enabled_patterns=["P7", "P6", "P10"],
+        mapping_confidence=0.72,
+    )
+    return f"Upserted entity {slug!r} ({name!r})."
+
+
+def cmd_watchlist_remove(session: Session, slug: str) -> str:
+    ok = disable_entity(session, slug.strip())
+    return f"Disabled {slug!r}." if ok else f"Unknown slug {slug!r}."

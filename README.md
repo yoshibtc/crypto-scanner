@@ -52,10 +52,13 @@ python -c "from cgd.workers.one_shot import run_evaluate; run_evaluate()"
 
 ## Notes
 
-- `SHADOW_MODE=1` (default): gaps stay **DETECTED**; set `SHADOW_MODE=0` to allow **ESCALATED** + Telegram dispatch.
+- `SHADOW_MODE=1` (default): gaps stay **DETECTED**; set `SHADOW_MODE=0` in `.env` on the Droplet (or locally) to allow **ESCALATED** + Telegram dispatch.
+- Celery beat runs **fast** evaluation every 2m (`P7` + `P10` CEX) and **slow** every 20m (`P6` + `P10` DEX), plus lifecycle, labels, BTC regime, RPC health—see [cgd/workers/celery_app.py](cgd/workers/celery_app.py).
+- Pattern thresholds / regime allowlists: [config/patterns.yaml](config/patterns.yaml).
 - CCXT matrix: [config/ccxt_matrix.yaml](config/ccxt_matrix.yaml). Task `verify_ccxt_matrix` probes exchanges and updates **`source_health`** for each `ccxt:{id}` (same keys as ingest).
 - Pattern 7 framing: **positioning / leverage stress** (see payload `framing` field).
-- Timescale: `market_facts` is a hypertable on `source_ts`. Optional retention: [cgd/db/timescale_policies.sql](cgd/db/timescale_policies.sql).
+- Timescale: `market_facts` is a hypertable on `source_ts`. Retention (run once): [cgd/db/timescale_policies.sql](cgd/db/timescale_policies.sql).
+- Expand watchlist from Binance volumes: `python scripts/build_watchlist.py --top 50`
 
 ## Caveats (read once)
 

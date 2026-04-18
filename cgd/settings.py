@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     matrix_version: int = Field(default=1, validation_alias="MATRIX_VERSION")
     shadow_mode: bool = Field(default=True, validation_alias="SHADOW_MODE")
 
+    #: Consecutive evaluations without a matching candidate before auto-resolve (gap lifecycle).
+    auto_resolve_miss_threshold: int = Field(default=2, validation_alias="AUTO_RESOLVE_MISS_THRESHOLD")
+
     telegram_bot_token: str = Field(default="", validation_alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str = Field(default="", validation_alias="TELEGRAM_CHAT_ID")
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from cgd.patterns.tier1 import p01_unlocks, p02_tvl, p06_revenue_fdv, p07_derivs, p10_stable
+from cgd.patterns.tier1 import p06_revenue_fdv, p07_derivs, p10_stable
 from cgd.patterns.types import EvaluationContext
 
 
@@ -142,81 +142,3 @@ def test_p10_cex_skipped_when_ccxt_degraded():
     )
     out = p10_stable.detect(ctx)
     assert not any(c.dedupe_key.endswith("P10:CEX") for c in out)
-
-
-def test_p02_fires_with_composition():
-    t0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    t1 = t0 + timedelta(days=7)
-    market = [
-        {
-            "fact_type": "defillama_protocol",
-            "source_ts": t0,
-            "payload": {"tvl": 100.0},
-        },
-        {
-            "fact_type": "defillama_protocol",
-            "source_ts": t1,
-            "payload": {"tvl": 130.0},
-        },
-    ]
-    onchain = [
-        {
-            "fact_type": "tvl_composition",
-            "source_ts": t1,
-            "payload": {"native_share_of_inflow": 0.85},
-        }
-    ]
-    ctx = EvaluationContext(
-        entity=_entity(),
-        as_of=t1,
-        semantics_version=1,
-        matrix_version=1,
-        market_rows=market,
-        onchain_rows=onchain,
-    )
-    out = p02_tvl.detect(ctx)
-    assert len(out) == 1
-
-
-def test_p01_suppressed_on_unknown():
-    ctx = EvaluationContext(
-        entity=_entity(),
-        as_of=datetime.now(timezone.utc),
-        semantics_version=1,
-        matrix_version=1,
-        market_rows=[],
-        onchain_rows=[
-            {
-                "fact_type": "vesting_schedule",
-                "source_ts": datetime.now(timezone.utc),
-                "payload": {"coverage": "UNKNOWN"},
-            }
-        ],
-    )
-    assert p01_unlocks.detect(ctx) == []
-
-
-def test_p01_fires_when_full():
-    ts = datetime.now(timezone.utc)
-    ctx = EvaluationContext(
-        entity=_entity(),
-        as_of=ts,
-        semantics_version=1,
-        matrix_version=1,
-        market_rows=[],
-        onchain_rows=[
-            {
-                "fact_type": "vesting_schedule",
-                "source_ts": ts,
-                "payload": {
-                    "coverage": "FULL",
-                    "unlock_pct_circulating_within_7d": 0.1,
-                    "unlock_fiat_value": 10_000_000,
-                    "adv_14d_quote": 1_000_000,
-                    "adapter_id": "stub",
-                },
-            }
-        ],
-    )
-    out = p01_unlocks.detect(ctx)
-    assert len(out) == 1

@@ -100,6 +100,7 @@ class Gap(Base):
     payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     supporting_observation_refs: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     alert_dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolve_miss_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     entity: Mapped[Entity] = relationship(back_populates="gaps")
     events: Mapped[list[GapEvent]] = relationship(back_populates="gap", order_by="GapEvent.id")
@@ -141,15 +142,6 @@ class SourceHealth(Base):
     )
 
 
-class IngestionCursor(Base):
-    __tablename__ = "ingestion_cursors"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    source_key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
-    cursor_value: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-
-
 class EvaluationRun(Base):
     __tablename__ = "evaluation_runs"
 
@@ -173,3 +165,8 @@ class GapOutcome(Base):
     still_true_7d: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     labeled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ret_1h_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ret_4h_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ret_24h_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ret_7d_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    computed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

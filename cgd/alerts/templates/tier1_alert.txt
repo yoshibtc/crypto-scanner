@@ -1,6 +1,12 @@
 [CGD] {{ pattern_id }} — {{ entity_name }} ({{ entity_slug }})
 status={{ status }}
 
+Signal:
+  side={{ payload.side | default('watch') }}
+  tradable={{ payload.tradable | default(true) }}
+  half_life_minutes={{ payload.half_life_minutes | default('?') }}
+  confluence={{ payload.confluence_label | default('') }}
+
 payload:
 {{ payload | tojson }}
 
