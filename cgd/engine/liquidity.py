@@ -30,6 +30,11 @@ def _latest_quote_volume_usd(session, entity_id: int) -> float | None:
 
 
 def apply_liquidity_gate(entity: Any, cand: GapCandidate, session: Any, cfg: PatternConfig) -> None:
+    cmap = getattr(entity, "ccxt_symbol_map", None) or {}
+    if not cmap:
+        cand.payload.setdefault("liquidity_note", "NO_CEX_MAP_skipped")
+        return
+
     floor = cfg.liquidity_quote_volume_floor_usd
     qv = _latest_quote_volume_usd(session, entity.id)
     cand.payload.setdefault("quote_volume_usd", qv)

@@ -103,7 +103,15 @@ def run_tier1_evaluation(
 ) -> dict[str, Any]:
     settings = get_settings()
     now = datetime.now(timezone.utc)
-    summary: dict[str, Any] = {"candidates": 0, "gaps": 0, "escalated": 0}
+    summary: dict[str, Any] = {
+        "candidates": 0,
+        "gaps": 0,
+        "escalated": 0,
+        "suppressed_health": 0,
+        "suppressed_regime": 0,
+        "suppressed_gate": 0,
+        "suppressed_liquidity": 0,
+    }
     pattern_cfg = load_pattern_config()
     ccxt_degraded = any_enabled_ccxt_venue_degraded()
     regime = _load_latest_regime()
@@ -132,15 +140,27 @@ def run_tier1_evaluation(
                 regime=regime,
             )
             ih = _inputs_hash(ent.id, market, onchain)
-            entity_summary: dict[str, Any] = {"candidates": 0, "gaps": 0, "escalated": 0}
+            entity_summary: dict[str, Any] = {
+                "candidates": 0,
+                "gaps": 0,
+                "escalated": 0,
+                "suppressed_health": 0,
+                "suppressed_regime": 0,
+                "suppressed_gate": 0,
+                "suppressed_liquidity": 0,
+            }
 
             for pid in enabled:
                 mod = PATTERN_BY_ID.get(pid)
                 if mod is None:
                     continue
                 if skip_pattern_for_health(pid):
+                    summary["suppressed_health"] += 1
+                    entity_summary["suppressed_health"] += 1
                     continue
                 if not _regime_allows_pattern(pattern_cfg, pid, regime):
+                    summary["suppressed_regime"] += 1
+                    entity_summary["suppressed_regime"] += 1
                     continue
                 for cand in mod.detect(ctx):
                     gcfg = pattern_cfg.gates.get(pid)
@@ -154,6 +174,8 @@ def run_tier1_evaluation(
                             pattern_cfg.percentile_window_days,
                             gate_filter,
                         ):
+                            summary["suppressed_gate"] += 1
+                            entity_summary["suppressed_gate"] += 1
                             continue
 
                     conf = _confluence_count(session, ent.id, pid, 24, now)
@@ -161,6 +183,9 @@ def run_tier1_evaluation(
                     cand.payload.setdefault("confluence_label", f"{conf}/5 peers in 24h")
 
                     apply_liquidity_gate(ent, cand, session, pattern_cfg)
+                    if not cand.tradable:
+                        summary["suppressed_liquidity"] += 1
+                        entity_summary["suppressed_liquidity"] += 1
 
                     clean_payload = _finalize_payload(cand)
 

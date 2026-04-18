@@ -64,6 +64,7 @@ def test_p07_fires():
     out = p07_derivs.detect(ctx)
     assert len(out) == 1
     assert out[0].pattern_id == "P7"
+    assert out[0].side == "short"
 
 
 def test_p06_fires():

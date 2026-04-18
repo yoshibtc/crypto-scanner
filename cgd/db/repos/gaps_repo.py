@@ -52,6 +52,26 @@ def upsert_gap_candidate_session(
         )
         return g, "created"
 
+    if existing.status in (GapStatus.RESOLVED.value, GapStatus.INVALIDATED.value):
+        existing.status = GapStatus.DETECTED.value
+        existing.opened_at = now
+        existing.resolved_at = None
+        existing.escalated_at = None
+        existing.alert_dispatched_at = None
+        existing.payload_json = payload
+        existing.supporting_observation_refs = refs
+        existing.resolve_miss_streak = 0
+        session.add(
+            GapEvent(
+                gap_id=existing.id,
+                event_type="REOPENED",
+                reason_codes=reason_codes,
+                meta={"shadow_mode": shadow_mode},
+                created_at=now,
+            )
+        )
+        return existing, "reopened"
+
     existing.payload_json = payload
     existing.supporting_observation_refs = refs
     existing.resolve_miss_streak = 0

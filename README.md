@@ -58,7 +58,8 @@ python -c "from cgd.workers.one_shot import run_evaluate; run_evaluate()"
 - CCXT matrix: [config/ccxt_matrix.yaml](config/ccxt_matrix.yaml). Task `verify_ccxt_matrix` probes exchanges and updates **`source_health`** for each `ccxt:{id}` (same keys as ingest).
 - Pattern 7 framing: **positioning / leverage stress** (see payload `framing` field).
 - Timescale: `market_facts` is a hypertable on `source_ts`. Retention (run once): [cgd/db/timescale_policies.sql](cgd/db/timescale_policies.sql).
-- Expand watchlist from Binance volumes: `python scripts/build_watchlist.py --top 50`
+- Expand watchlist from Binance **USDT-M perpetual** volumes (P7-only entities; DeFi/P6 still comes from `scripts/seed_entities.py`): `python scripts/build_watchlist.py --top 50`
+- **Gap reopen + telemetry:** If a pattern fires again after a gap was **RESOLVED** or **INVALIDATED**, the same row is **reopened** to `DETECTED` (new `opened_at`, `REOPENED` event; alert dispatch timestamp cleared). `/status` shows each evaluation’s `EvaluationRun.summary`, including **`suppressed_health` / `suppressed_regime` / `suppressed_gate` / `suppressed_liquidity`** counts so you can see what filters ate signals.
 
 ## Caveats (read once)
 

@@ -13,6 +13,12 @@ venues:
     spot: true
     perp: true
     notes: "Second venue for multi-venue P7"
+  binance_perp:
+    enabled: true
+    ccxt_id: binanceusdm
+    spot: false
+    perp: true
+    notes: "USDT-M perps for scripts/build_watchlist.py P7 entities"
   coinbase:
     enabled: false
     ccxt_id: coinbase

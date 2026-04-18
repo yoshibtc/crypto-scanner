@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Upsert entities from Binance spot markets ranked by 24h quote volume (USDT pairs).
+"""Upsert entities from Binance USDT-M perpetuals ranked by 24h quote volume.
+
+DeFi/protocol entities (P6, etc.) are seeded separately via scripts/seed_entities.py —
+this script is **perp-only** for P7 (OI + funding).
 
 Usage:
   python scripts/build_watchlist.py [--top N] [--floor-usd VOLUME]
@@ -10,7 +13,6 @@ Requires network (CCXT). Idempotent by slug.
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
@@ -23,10 +25,9 @@ from cgd.db.engine import session_scope  # noqa: E402
 from cgd.db.repos.entities_repo import upsert_entity  # noqa: E402
 
 
-def _slugify(sym: str) -> str:
-    base = sym.replace("/", "-").lower()
-    base = re.sub(r"[^a-z0-9-]", "-", base)
-    return f"{base}-spot"
+def _slug_for_perp(sym: str) -> str:
+    base = sym.split("/")[0].lower()
+    return f"{base}-usdt-perp"
 
 
 def main() -> None:
@@ -40,13 +41,16 @@ def main() -> None:
     )
     args = ap.parse_args()
 
-    ex = ccxt.binance({"enableRateLimit": True})
+    ex = ccxt.binanceusdm({"enableRateLimit": True})
     ex.load_markets()
     tickers = ex.fetch_tickers()
 
     ranked: list[tuple[str, float]] = []
     for sym, t in tickers.items():
-        if not sym.endswith("/USDT"):
+        m = ex.markets.get(sym)
+        if not m or not m.get("swap"):
+            continue
+        if not sym.endswith(":USDT"):
             continue
         qv = t.get("quoteVolume")
         try:
@@ -62,15 +66,15 @@ def main() -> None:
 
     with session_scope() as session:
         for sym, qv in picked:
-            slug = _slugify(sym)
+            slug = _slug_for_perp(sym)
             upsert_entity(
                 session,
                 slug=slug,
-                display_name=f"{sym} (Binance watch)",
+                display_name=f"{sym} (Binance USDT-M)",
                 llama_protocol_slugs=[],
-                ccxt_symbol_map={"binance": {"spot": sym}},
+                ccxt_symbol_map={"binance_perp": {"swap": sym, "perp": sym}},
                 mapping_confidence=0.72,
-                enabled_patterns=["P7", "P6"],
+                enabled_patterns=["P7"],
             )
             print(f"upsert {slug}  vol~{qv:,.0f}")
 

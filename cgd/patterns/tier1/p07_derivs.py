@@ -98,7 +98,7 @@ def _detect_one_venue(
         payload=payload,
         refs={"old_fact_ts": old["source_ts"].isoformat(), "new_fact_ts": new["source_ts"].isoformat()},
         reason_codes=["P7_FIRED"],
-        side="watch",
+        side="short",
         invalidation={"type": "funding_above", "level": FUNDING_MAX},
         half_life_minutes=240,
         tradable=True,

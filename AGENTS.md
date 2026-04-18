@@ -55,6 +55,11 @@ journalctl -u celery-worker -n 100 --no-pager        # recent worker logs
 docker compose -f /root/crypto-scanner/docker-compose.yml ps   # Postgres + Redis up?
 ```
 
+## Operational semantics (short)
+
+- **`scripts/build_watchlist.py`** seeds **Binance USDT-M perps** (`binance_perp` in `ccxt_matrix.yaml`) for **P7** only; protocol/P6 coverage stays on `seed_entities.py`.
+- **Gaps:** When a resolved/invalidated gap matches again, **`upsert_gap_candidate_session` reopens** it (`DETECTED`, new `opened_at`, `REOPENED` event). **`/status`** prints the latest `EvaluationRun.summary`, including **`suppressed_*`** counters from the evaluator (health / regime / percentile gate / liquidity).
+
 ## Project conventions (from user rules)
 
 - **Keep it simple** — smallest working change.
