@@ -18,6 +18,7 @@ app = Celery(
         "cgd.workers.tasks.labels",
         "cgd.workers.tasks.regime",
         "cgd.workers.tasks.reports",
+        "cgd.workers.tasks.watchlist",
     ],
 )
 
@@ -85,6 +86,11 @@ app.conf.update(
         "ccxt-matrix-verify-daily": {
             "task": "cgd.verify_ccxt_matrix",
             "schedule": 86400.0,
+            "options": {"queue": "ingest_ccxt"},
+        },
+        "refresh-perp-watchlist-daily": {
+            "task": "cgd.refresh_perp_watchlist",
+            "schedule": crontab(hour=1, minute=0),
             "options": {"queue": "ingest_ccxt"},
         },
         "daily-summary-report-midnight": {
