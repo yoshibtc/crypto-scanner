@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 
 from cgd.settings import get_settings
 
@@ -16,6 +17,7 @@ app = Celery(
         "cgd.workers.tasks.lifecycle",
         "cgd.workers.tasks.labels",
         "cgd.workers.tasks.regime",
+        "cgd.workers.tasks.reports",
     ],
 )
 
@@ -84,6 +86,11 @@ app.conf.update(
             "task": "cgd.verify_ccxt_matrix",
             "schedule": 86400.0,
             "options": {"queue": "ingest_ccxt"},
+        },
+        "daily-summary-report-midnight": {
+            "task": "cgd.daily_summary_report",
+            "schedule": crontab(hour=0, minute=0),
+            "options": {"queue": "alerts"},
         },
     },
 )
